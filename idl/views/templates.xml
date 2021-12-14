@@ -1,24 +1,326 @@
 <odoo>
-    <data>
-<!--
-        <template id="listing">
-          <ul>
-            <li t-foreach="objects" t-as="object">
-              <a t-attf-href="#{ root }/objects/#{ object.id }">
-                <t t-esc="object.display_name"/>
-              </a>
-            </li>
-          </ul>
-        </template>
-        <template id="object">
-          <h1><t t-esc="object.display_name"/></h1>
-          <dl>
-            <t t-foreach="object._fields" t-as="field">
-              <dt><t t-esc="field"/></dt>
-              <dd><t t-esc="object[field]"/></dd>
-            </t>
-          </dl>
-        </template>
--->
-    </data>
+  <data>
+    <template id="license_info" name="License Info">
+      <t t-set="combination" t-value="product._get_first_possible_combination()"/>
+      <t t-set="combination_info" t-value="product._get_combination_info(combination, add_qty=add_qty or 1, pricelist=pricelist)"/>
+      <t t-set="product_variant" t-value="product.env['product.product'].browse(combination_info['product_id'])"/>
+
+      <t t-call="website.layout">
+        <t t-set="additional_title" t-value="product.name" />
+        <div itemscope="itemscope" itemtype="http://schema.org/Product" id="wrap" class="js_sale">
+          <div class="oe_structure oe_empty oe_structure_not_nearest" id="oe_structure_website_sale_product_1" data-editor-message="DROP BUILDING BLOCKS HERE TO MAKE THEM AVAILABLE ACROSS ALL PRODUCTS"/>
+          <section t-attf-class="container py-4 oe_website_sale #{'discount' if combination_info['has_discounted_price'] else ''}" id="product_detail" t-att-data-view-track="view_track and '1' or '0'" t-att-data-product-tracking-info="json.dumps(request.env['product.template'].get_google_analytics_data(combination_info))">
+            <div class="row">
+            </div>
+            <div class="row">
+              <div class="col-md-6 mt-md-4">
+                <t t-call="website_sale.shop_product_carousel"/>
+              </div>
+              <div class="col-md-6 mt-md-4" id="product_details">
+                <h1 itemprop="name" t-field="product.name">Product Name</h1>
+                <span itemprop="url" style="display:none;" t-esc="product.website_url"/>
+                <t t-if="is_view_active('website_sale.product_comment')">
+                  <a href="#o_product_page_reviews" class="o_product_page_reviews_link text-decoration-none">
+                    <t t-call="portal_rating.rating_widget_stars_static">
+                      <t t-set="rating_avg" t-value="product.rating_avg"/>
+                      <t t-set="trans_text_plural">%s reviews</t>
+                      <t t-set="trans_text_singular">%s review</t>
+                      <t t-set="rating_count" t-value="(trans_text_plural if product.rating_count > 1 else trans_text_singular) % product.rating_count"/>
+                    </t>
+                  </a>
+                </t>
+                <p t-field="product.description_sale" class="text-muted my-2" placeholder="A short description that will also appear on documents." />
+                <form t-if="product._is_add_to_cart_possible()" action="/shop/get_order" method="POST">
+                  <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()" />
+                  <div class="js_product js_main_product mb-3">
+                    <div>
+                      <t t-call="website_sale.product_price" />
+                      <small class="ml-1 text-muted o_base_unit_price_wrapper d-none" groups="website_sale.group_show_uom_price">
+                        <t t-call='website_sale.base_unit_price'/>
+                      </small>
+                    </div>
+                    <t t-placeholder="select">
+                      <input type="hidden" class="product_id" name="product_id" t-att-value="product_variant.id" />
+                      <input type="hidden" class="product_template_id" name="product_template_id" t-att-value="product.id" />
+                      <input t-if="product.public_categ_ids.ids" type="hidden" class="product_category_id" name="product_category_id" t-att-value="product.public_categ_ids.ids[0]" />
+                      <t t-if="combination" t-call="sale.variants">
+                        <t t-set="ul_class" t-valuef="flex-column" />
+                        <t t-set="parent_combination" t-value="None" />
+                      </t>
+                      <t t-else="">
+                        <ul class="d-none js_add_cart_variants" t-att-data-attribute_exclusions="{'exclusions: []'}"/>
+                      </t>
+                    </t>
+                    <p t-if="True" class="css_not_available_msg alert alert-warning">This combination does not exist.</p>
+                    <div id="add_to_cart_wrap" class="d-inline">
+                      <a role="button" id="add_to_cart" class="btn btn-primary btn-lg js_check_product a-submit my-1 mr-1 px-5 font-weight-bold flex-grow-1" href="#">
+                        <i class="fa fa-shopping-cart mr-2"/>
+ADD TO CART</a>
+                      <div id="product_option_block" class="d-inline-block align-middle"/>
+                    </div>
+                  </div>
+                </form>
+                <p t-elif="not product.active" class="alert alert-warning">This product is no longer available.</p>
+                <p t-else="" class="alert alert-warning">This product has no valid combination.</p>
+                <div id="product_attributes_simple">
+                  <t t-set="single_value_attributes" t-value="product.valid_product_template_attribute_line_ids._prepare_single_value_for_display()"/>
+                  <table t-attf-class="table table-sm text-muted {{'' if single_value_attributes else 'd-none'}}">
+                    <t t-foreach="single_value_attributes" t-as="attribute">
+                      <tr>
+                        <td>
+                          <span t-field="attribute.name"/>
+:
+                          <t t-foreach="single_value_attributes[attribute]" t-as="ptal">
+                            <span t-field="ptal.product_template_value_ids._only_active().name"/>
+                            <t t-if="not ptal_last">, </t>
+                          </t>
+                        </td>
+                      </tr>
+                    </t>
+                  </table>
+                </div>
+                <div id="o_product_terms_and_share">
+                </div>
+              </div>
+            </div>
+          </section>
+          <div itemprop="description" t-field="product.website_description" class="oe_structure oe_empty mt16" id="product_full_description"/>
+          <div class="oe_structure oe_empty oe_structure_not_nearest mt16" id="oe_structure_website_sale_product_2" data-editor-message="DROP BUILDING BLOCKS HERE TO MAKE THEM AVAILABLE ACROSS ALL PRODUCTS"/>
+          <div class="row">
+
+            <div class="col-12 col-xl order-xl-1 oe_cart">
+              <section class="s_website_form" data-vcss="001" data-snippet="s_website_form">
+                <div class="container">
+                  <form action="/shop/get_order" method="post" enctype="multipart/form-data" class="o_mark_required s_website_form_no_recaptcha" data-mark="*" data-force_action="shop.sale.order" data-model_name="sale.order" data-success-mode="redirect" data-success-page="/shop/payment" hide-change-model="true">
+
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()" />
+                    <input type="hidden" class="product_id" name="product_id" t-att-value="product_variant.id" />
+                    <div class="s_website_form_rows row s_col_no_bgcolor">
+
+
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="fname">
+                            <span class="s_website_form_label_content">First name:</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="fname" type="text" class="form-control s_website_form_input" name="fname" t-att-value="fname"/>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="lname">
+                            <span class="s_website_form_label_content">Last name:</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="lname" type="text" class="form-control s_website_form_input" name="lname"/>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="saddress">
+                            <span class="s_website_form_label_content">Street Address </span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="saddress" type="text" class="form-control s_website_form_input" name="saddress"/>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="city">
+                            <span class="s_website_form_label_content">City </span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="city" type="text" class="form-control s_website_form_input" name="city"/>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="state_province">
+                            <span class="s_website_form_label_content">State / Province </span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="state_province" type="text" class="form-control s_website_form_input" name="state_province"/>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="zip_pc">
+                            <span class="s_website_form_label_content">ZIP / Postal Code </span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="zip_pc" type="text" class="form-control s_website_form_input" name="zip_pc"/>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="country_id">
+                            <span class="s_website_form_label_content">Country </span>
+                          </label>
+                          <div class="col-sm">
+                            <select class="form-control" name="country_id">
+                              <t t-foreach="country_id" t-as="country">
+                                <option t-attf-value="#{country.id}">
+                                  <t t-esc="country.name"/>
+                                </option>
+                              </t>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field" data-type="date" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="birth">
+                            <span class="s_website_form_label_content">Date of birth:</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="birth" type="date" class="form-control s_website_form_input" name="birth"/>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field s_website_form_custom" data-type="binary" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="your_photo">
+                            <span class="s_website_form_label_content">Your photo</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="your_photo" type="file" class="form-control-file s_website_form_input" name="your_photo" />
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="country_birth">
+                            <span class="s_website_form_label_content">Country of birth: </span>
+                          </label>
+                          <div class="col-sm">
+                            <select class="form-control" name="country_birth">
+                              <t t-foreach="country_id" t-as="country">
+                                <option t-attf-value="#{country.id}">
+                                  <t t-esc="country.name"/>
+                                </option>
+                              </t>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- <div class="form-group col-12 s_website_form_field" data-type="bool" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="category_b">
+                            <span class="s_website_form_label_content">CATEGORY </span>
+                          </label>
+                          <div class="col-sm">
+                            <div class="row mt32 mb32">
+                              <div class="col-xs-2">
+                                <strong>A</strong>
+                                <input type="checkbox" id="category_a" class="form-control o_website_form_input" name="category_a"/>
+                              </div>
+                              <div class="col-xs-6">
+                                <strong>B</strong>
+                                <input type="checkbox" id="category_b" class="form-control o_website_form_input" name="category_b"/>
+                              </div>
+                              <div class="col-xs-6">
+                                <strong>C</strong>
+                                <input type="checkbox" id="category_c" class="form-control o_website_form_input" name="category_c"/>
+                              </div>
+                              <div class="col-xs-6">
+                                <strong>D</strong>
+                                <input type="checkbox" id="category_d" class="form-control o_website_form_input" name="category_d"/>
+                              </div>
+                            </div> -->
+                      <!-- <input type="checkbox" id="category_be" class="form-control o_website_form_input" name="category_be"/>
+                            <input type="checkbox" id="category_ce" class="form-control o_website_form_input" name="category_ce"/>
+                            <input type="checkbox" id="category_de" class="form-control o_website_form_input" name="category_de"/>
+                            <input type="checkbox" id="category_a1" class="form-control o_website_form_input" name="category_a1"/>
+                            <input type="checkbox" id="category_b1" class="form-control o_website_form_input" name="category_b1"/>
+                            <input type="checkbox" id="category_c1" class="form-control o_website_form_input" name="category_c1"/>
+                            <input type="checkbox" id="category_d1" class="form-control o_website_form_input" name="category_d1"/>
+                            <input type="checkbox" id="category_c1e" class="form-control o_website_form_input" name="category_c1e"/>
+                            <input type="checkbox" id="category_d1e" class="form-control o_website_form_input" name="category_d1e"/> -->
+                      <!-- </div>
+                        </div>
+                      </div> -->
+                      <div class="form-group col-12 s_website_form_field" data-type="char" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="license_n">
+                            <span class="s_website_form_label_content">Your driver's license number </span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="license_n" type="text" class="form-control s_website_form_input" name="license_n"/>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field" data-type="date" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="license_d">
+                            <span class="s_website_form_label_content">Your driver's license first issue date</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="license_d" type="date" class="form-control s_website_form_input" name="license_d"/>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field s_website_form_custom" data-type="binary" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="license_s">
+                            <span class="s_website_form_label_content">Attach Your signature, JPEG (JPG), PNG formats only</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="license_s" type="file" class="form-control-file s_website_form_input" name="license_s" />
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_field s_website_form_custom" data-type="binary" data-name="Field">
+                        <div class="row s_col_no_resize s_col_no_bgcolor">
+                          <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="license_p">
+                            <span class="s_website_form_label_content">Attach Your driver license copy, JPEG (JPG), GIF, PNG formats only</span>
+                          </label>
+                          <div class="col-sm">
+                            <input id="license_p" type="file" class="form-control-file s_website_form_input" name="license_p" />
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group col-12 s_website_form_submit s_website_form_no_submit_options">
+                        <div style="width: 200px;" class="s_website_form_label"/>
+                        <button type="submit" href="/shop/get_order" class="btn btn-primary float-right">
+                          <span class="fa fa-chevron-right"/>
+Next</button>
+                        <span id="s_website_form_result"></span>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </t>
+    </template>
+    <template id="wizard_checkout" name="LICENSE INFORMATION" inherit_id="website_sale.wizard_checkout" active="True">
+      <!-- Add a "flag element" to trigger style variation -->
+      <xpath expr="//div[hasclass('wizard')]/div" position="before">
+        <span class="o_wizard_has_extra_step d-none"/>
+      </xpath>
+      <xpath expr="//div[@id='wizard-step10']" position="replace">
+        <a class="no-decoration" t-att-href="step&gt;=00 and '/shop/license_info' or '#'">
+          <div id="wizard-step00" t-att-class="'progress-wizard-step %s' % (step == 00 and 'active' or step&gt;00 and 'complete' or 'disabled')">
+            <div class="progress-wizard-bar d-none d-md-block"/>
+            <span class="progress-wizard-dot d-none d-md-inline-block"></span>
+            <div class="text-center progress-wizard-steplabel">LICENSE INFORMATION</div>
+          </div>
+        </a>
+      </xpath>
+    </template>
+  </data>
 </odoo>
