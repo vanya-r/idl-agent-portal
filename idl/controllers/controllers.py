@@ -52,7 +52,7 @@ class WebsiteSale(http.Controller):
         # if redirection:
         #     return redirection
         values = {}
-        if request.session["sale_order_id"] is None:
+        if post.get("sale_order_id") is None:
             pass
         else:
             order = request.website.env["sale.order"].search(
@@ -64,7 +64,9 @@ class WebsiteSale(http.Controller):
                         "fname": order.order_line[0].fname,
                     }
                 )
-        product = request.website.env["product.template"].search([("id", "=", 1)])[0]
+        product = request.website.env["product.template"].search(
+            [("name", "=", "UIDD")]
+        )[0]
         # order._cart_update(
         #     product_id=int(product),
         #     add_qty=1,
