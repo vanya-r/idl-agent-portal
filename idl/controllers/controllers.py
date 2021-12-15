@@ -2,6 +2,8 @@
 
 import json
 import logging
+
+import base64
 from werkzeug.exceptions import Forbidden, NotFound
 from werkzeug.urls import url_decode, url_encode, url_parse
 
@@ -25,64 +27,42 @@ _logger = logging.getLogger(__name__)
 
 
 class WebsiteSale(http.Controller):
-    # def checkout_redirection(self, order):
-    #     # must have a draft sales order with lines at this point, otherwise reset
-    #     if not order or order.state != "draft":
-    #         request.session["sale_order_id"] = None
-    #         request.session["sale_transaction_id"] = None
-    #         return request.redirect("/shop")
-
-    #     if order and not order.order_line:
-    #         return request.redirect("/shop/cart")
-
-    #     # if transaction pending / done: redirect to confirmation
-    #     tx = request.env.context.get("website_sale_transaction")
-    #     if tx and tx.state != "draft":
-    #         return request.redirect("/shop/payment/confirmation/%s" % order.id)
-
     @http.route(
         ["/shop/license_info"], type="http", auth="public", website=True, sitemap=False
     )
     def license_info(self, **post):
 
-        # check that cart is valid
-        # order = request.website.sale_get_order()
-        # order = request.website.sale_get_order()
-        # redirection = self.checkout_redirection(order)
-        # if redirection:
-        #     return redirection
         values = {}
-        if post.get("sale_order_id") is None:
+        order = request.website.sale_get_order()
+        print(order.id)
+        print(order.order_line)
+        if order is False:
             pass
         else:
-            order = request.website.env["sale.order"].search(
-                [("id", "=", int(request.session["sale_order_id"]))]
-            )[0]
-            if len(order.order_line) == 1:
+            if len(order.order_line):
                 values.update(
                     {
                         "fname": order.order_line[0].fname,
+                        "lname": order.order_line[0].lname,
+                        "city": order.order_line[0].city,
+                        "state_province": order.order_line[0].state_province,
+                        "zip_pc": order.order_line[0].zip_pc,
+                        "country_id": order.order_line[0].country_id,
+                        "birth": order.order_line[0].birth,
+                        "your_photo": order.order_line[0].your_photo,
+                        "country_birth": order.order_line[0].country_birth,
+                        # "category": order.order_line[0].category"),
+                        "license_n": order.order_line[0].license_n,
+                        "license_d": order.order_line[0].license_d,
+                        "license_s": order.order_line[0].license_s,
+                        "license_p": order.order_line[0].license_p,
                     }
                 )
         product = request.website.env["product.template"].search(
             [("name", "=", "UIDD")]
         )[0]
-        # order._cart_update(
-        #     product_id=int(product),
-        #     add_qty=1,
-        #     set_qty=1,
-        #     # product_custom_attribute_values=product_custom_attribute_values,
-        #     # no_variant_attribute_values=no_variant_attribute_values
-        # )
         values.update(
             {
-                # "search": search,
-                # "category": category,
-                # "pricelist": pricelist,
-                # "attrib_values": attrib_values,
-                # "attrib_set": attrib_set,
-                # "keep": keep,
-                # "categories": categs,
                 "main_object": product,
                 "product": product,
                 "add_qty": 1,
@@ -96,6 +76,7 @@ class WebsiteSale(http.Controller):
             }
         )
         print("asdads" * 88)
+        print(post)
         print(values)
         return request.render("idl.license_info", values)
 
@@ -122,13 +103,34 @@ class WebsiteSale(http.Controller):
             no_variant_attribute_values = json_scriptsafe.loads(
                 kw.get("no_variant_attribute_values")
             )
-
+        product = request.website.env["product.template"].search(
+            [("name", "=", "UIDD")]
+        )[0]
         sale_order._cart_update(
-            product_id=1,
+            product_id=product.id,
             set_qty=1,
             product_custom_attribute_values=product_custom_attribute_values,
             no_variant_attribute_values=no_variant_attribute_values,
         )
+        # for ffields in ["your_photo", "license_s", "license_p"]:
+        #     if kw.get(ffields):
+        #         FileStorage = kw.get(ffields)
+        #         FileExtension = FileStorage.filename.split(".")[-1].lower()
+        #         ALLOWED_IMAGE_EXTENSIONS = ["jpg", "png", "gif"]
+        #     if FileExtension not in ALLOWED_IMAGE_EXTENSIONS:
+        #         return json.dumps(
+        #             {
+        #                 "status": 400,
+        #                 "message": _(
+        #                     "Only allowed image file with extension: %s"
+        #                     % (",".join(ALLOWED_IMAGE_EXTENSIONS))
+        #                 ),
+        #             }
+        #         )
+
+        #     FileData = FileStorage.read()
+        #     file_base64 = base64.encodestring(FileData)
+        # kw[fields] = file_base64
         sale_order.order_line.write(
             {
                 "fname": kw.get("fname"),
@@ -138,13 +140,13 @@ class WebsiteSale(http.Controller):
                 "zip_pc": kw.get("zip_pc"),
                 "country_id": kw.get("country_id"),
                 "birth": kw.get("birth"),
-                "your_photo": kw.get("your_photo"),
+                # "your_photo": kw.get("your_photo"),
                 "country_birth": kw.get("country_birth"),
                 # "category": kw.get("category"),
                 "license_n": kw.get("license_n"),
                 "license_d": kw.get("license_d"),
-                "license_s": kw.get("license_s"),
-                "license_p": kw.get("license_p"),
+                # "license_s": kw.get("license_s"),
+                # "license_p": kw.get("license_p"),
             }
         )
         # if kw.get("express"):
